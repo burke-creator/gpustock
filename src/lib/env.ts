@@ -1,4 +1,9 @@
 export interface Env {
+  /** Registry base URL, e.g. https://burkeruder.net. Optional. */
+  REGISTRY_URL?: string;
+  /** Shared secret for posting run records to the registry. Optional. */
+  REPORT_SECRET?: string;
+
   ASSETS: Fetcher;
   BOARD: DurableObjectNamespace;
   RATE_LIMITER: DurableObjectNamespace<import("../do/ratelimiter").RateLimiter>;

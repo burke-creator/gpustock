@@ -1,6 +1,7 @@
 import type { Env, IngestMessage } from "../lib/env";
 import { persistOffers, publishSnapshot } from "../lib/snapshot";
 import { simulate, SIM_PROVIDER_IDS } from "../ingest/sim";
+import { reportRun } from "../lib/report";
 
 /**
  * Cron entry.
@@ -10,6 +11,28 @@ import { simulate, SIM_PROVIDER_IDS } from "../ingest/sim";
  * archives the last day of observations to R2 as newline-delimited JSON.
  */
 export async function runScheduled(controller: ScheduledController, env: Env): Promise<void> {
+  const startedAt = Date.now();
+  try {
+    await runScheduledInner(controller, env);
+    await reportRun(env, {
+      ok: true,
+      startedAt,
+      detail:
+        controller.cron === "5 6 * * *"
+          ? "daily archive to R2"
+          : `queued ingest for ${SIM_PROVIDER_IDS.length} providers`,
+    });
+  } catch (err) {
+    await reportRun(env, {
+      ok: false,
+      startedAt,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
+}
+
+async function runScheduledInner(controller: ScheduledController, env: Env): Promise<void> {
   if (controller.cron === "5 6 * * *") {
     const { results } = await env.DB.prepare(
       `SELECT * FROM observations WHERE observed_at >= datetime('now','-1 day')`

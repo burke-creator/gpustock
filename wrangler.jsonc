@@ -92,6 +92,7 @@
 
   "vars": {
     "SITE_NAME": "GPUSTOCK",
+    "REGISTRY_URL": "https://burkeruder.net",
     "API_VERSION": "v1",
     // Anonymous callers get this many req/min on /api/v1/*; keyed callers get
     // more. Deliberately low so scraper behaviour is easy to demo.
