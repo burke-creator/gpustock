@@ -1,0 +1,102 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gpustock",
+  "main": "src/worker.ts",
+
+  // Kept on deliberately: gpustock.io is unreachable from Cloudflare corp
+  // devices (Gateway blocks newly-registered domains), so this Access-gated
+  // hostname is the only way to verify a deploy from inside the network.
+  // wrangler resets this from config on every deploy, so it must live here
+  // rather than being toggled via the API.
+  "workers_dev": true,
+
+  // Preview URLs default to on once workers_dev is enabled, and they are a
+  // separate hostname pattern that the existing Access policy does not
+  // necessarily cover. Off until that is confirmed.
+  "preview_urls": false,
+  "compatibility_date": "2026-08-27",
+  "account_id": "88b90c65afc385e4f42ceadc3e72cb94",
+
+  // Static assets (Vite build output). The Worker handles /api/*, /ws and the
+  // bot-report endpoints; anything else falls through to a built asset.
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page"
+  },
+
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+
+  // Live availability board. SQLite-backed DO so per-board history survives
+  // hibernation; WebSocket Hibernation API keeps idle sockets free.
+  "durable_objects": {
+    "bindings": [
+      { "name": "BOARD", "class_name": "LiveBoard" },
+      { "name": "RATE_LIMITER", "class_name": "RateLimiter" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["LiveBoard", "RateLimiter"] }
+  ],
+
+  "kv_namespaces": [
+    { "binding": "CACHE", "id": "f807be3c448947eb90a94e760e1ad950" },
+    { "binding": "APIKEYS", "id": "3f93bdfa3c4240fc9ac0efa6b21ed3be" }
+  ],
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "gpustock-db",
+      "database_id": "641b341d-6837-4ff4-8f6c-956b09a1550c"
+    }
+  ],
+
+  "r2_buckets": [
+    { "binding": "ARCHIVE", "bucket_name": "gpustock-archive" }
+  ],
+
+  // Ingest fan-out: cron enqueues one message per provider, consumer fetches
+  // and normalises. Keeps a slow provider from blocking the whole run.
+  "queues": {
+    "producers": [{ "binding": "INGEST", "queue": "gpustock-ingest" }],
+    "consumers": [
+      {
+        "queue": "gpustock-ingest",
+        "max_batch_size": 5,
+        "max_batch_timeout": 10,
+        "max_retries": 3
+      }
+    ]
+  },
+
+  // Custom metrics for the public bot-report page. Written on every request so
+  // the "who's scraping us" view is real data, not a mock.
+  "analytics_engine_datasets": [
+    { "binding": "METRICS", "dataset": "gpustock_traffic" }
+  ],
+
+  "ai": { "binding": "AI" },
+
+  // Ingest every 10 min during waking hours; daily 06:05 UTC archive to R2.
+  "triggers": {
+    "crons": ["*/10 * * * *", "5 6 * * *"]
+  },
+
+  // Custom domain: wrangler manages the DNS record for the apex.
+  "routes": [
+    { "pattern": "gpustock.io", "custom_domain": true }
+  ],
+
+  "vars": {
+    "SITE_NAME": "GPUSTOCK",
+    "API_VERSION": "v1",
+    // Anonymous callers get this many req/min on /api/v1/*; keyed callers get
+    // more. Deliberately low so scraper behaviour is easy to demo.
+    "ANON_RATE_LIMIT": "20",
+    "KEYED_RATE_LIMIT": "300"
+  }
+}

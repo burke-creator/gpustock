@@ -1,0 +1,70 @@
+---
+import Base from "../layouts/Base.astro";
+
+// See note in index.astro: bindings come from `cloudflare:workers` in Astro v6+.
+import { env } from "cloudflare:workers";
+
+const anon = env.ANON_RATE_LIMIT ?? "20";
+const keyed = env.KEYED_RATE_LIMIT ?? "300";
+
+const endpoints = [
+  { m: "GET", p: "/api/v1/availability", d: "current snapshot across all providers" },
+  { m: "GET", p: "/api/v1/models", d: "accelerator catalog with specs" },
+  { m: "GET", p: "/api/v1/providers", d: "tracked providers and source kind" },
+  { m: "GET", p: "/api/v1/history/:modelId", d: "up to 500 recent observations" },
+  { m: "GET", p: "/api/v1/whoami", d: "how the edge classified your request" },
+  { m: "WS", p: "/ws", d: "realtime snapshot push" },
+];
+---
+
+<Base
+  title="GPUSTOCK — free public API"
+  description="Free JSON API for cloud GPU availability and spot pricing. Anonymous read access, higher quotas with a key."
+  active="api"
+>
+  <section class="hero">
+    <h1 class="hero-title">Free JSON API,<br /><em>no signup to read</em></h1>
+    <p class="hero-sub">
+      Anonymous callers get {anon} requests/minute. A free key raises that to
+      {keyed}. Every response carries <code>X-RateLimit-*</code> headers.
+    </p>
+  </section>
+
+  <section class="board-section">
+    <div class="section-head" data-reveal><h2>Endpoints</h2></div>
+    <div class="board">
+      {endpoints.map((e) => (
+        <article class="card" data-reveal>
+          <div class="card-top"><span class="card-model">{e.m} {e.p}</span></div>
+          <div class="card-bottom"><span class="card-prov">{e.d}</span></div>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <section class="whoami-section">
+    <div class="section-head" data-reveal><h2>Quickstart</h2></div>
+    <div class="whoami" data-reveal>
+      <div class="whoami-row">
+        <span>anonymous</span><b>curl https://gpustock.io/api/v1/availability</b>
+      </div>
+      <div class="whoami-row">
+        <span>with a key</span><b>curl -H "x-api-key: &lt;key&gt;" https://gpustock.io/api/v1/availability</b>
+      </div>
+      <div class="whoami-row">
+        <span>realtime</span><b>wscat -c wss://gpustock.io/ws</b>
+      </div>
+    </div>
+
+    <p class="provenance" data-reveal>
+      Rate limiting is enforced per identity by a Durable Object, so counters
+      stay accurate during bursts rather than under-counting the way an
+      eventually-consistent store would. Keys are issued behind a Turnstile
+      challenge. Any response row tagged <span class="tag tag-sim">SIM</span>
+      originates from a simulated feed and must not be treated as real market
+      data.
+    </p>
+  </section>
+
+  <script src="../scripts/traffic.ts"></script>
+</Base>

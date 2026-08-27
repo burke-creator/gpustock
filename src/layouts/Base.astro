@@ -1,0 +1,67 @@
+---
+import "../styles/main.css";
+
+interface Props {
+  title: string;
+  description: string;
+  /** Which nav item to mark current. */
+  active: "board" | "api" | "traffic";
+  /** Only the board needs the live connection pill. */
+  showConnection?: boolean;
+}
+
+const { title, description, active, showConnection = false } = Astro.props;
+
+const nav = [
+  { href: "/", label: "Board", key: "board" },
+  { href: "/api", label: "API", key: "api" },
+  { href: "/bots", label: "Traffic", key: "traffic" },
+] as const;
+---
+
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{title}</title>
+  <meta name="description" content={description} />
+  <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
+  <meta property="og:title" content={title} />
+  <meta property="og:description" content={description} />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://challenges.cloudflare.com" />
+</head>
+<body>
+
+  <div class="scroll-rail" aria-hidden="true"><i data-scroll-progress></i></div>
+
+  <header class="masthead">
+    <a class="brand" href="/">
+      <span class="brand-mark" aria-hidden="true">&#9626;</span>
+      <span class="brand-text">GPUSTOCK</span>
+    </a>
+    <nav class="nav">
+      {nav.map((n) => (
+        <a href={n.href} aria-current={active === n.key ? "page" : undefined}>{n.label}</a>
+      ))}
+    </nav>
+    {showConnection && (
+      <div class="status-pill" data-conn="connecting">
+        <i aria-hidden="true"></i><span data-conn-label>connecting</span>
+      </div>
+    )}
+  </header>
+
+  <main>
+    <slot />
+  </main>
+
+  <footer class="foot">
+    <span>GPUSTOCK</span>
+    <span class="foot-sep" aria-hidden="true">&middot;</span>
+    <span>Workers &middot; Durable Objects &middot; D1 &middot; R2 &middot; Queues &middot; Analytics Engine</span>
+  </footer>
+
+</body>
+</html>

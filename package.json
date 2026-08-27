@@ -1,0 +1,30 @@
+{
+  "name": "gpustock",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "astro build",
+    "dev": "astro dev",
+    "preview": "astro preview",
+    "deploy": "astro build && wrangler deploy",
+    "db:apply": "wrangler d1 execute gpustock-db --remote --file=./src/lib/schema.sql",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@astrojs/cloudflare": "^14.2.5",
+    "astro": "^7.2.8",
+    "hono": "^4.13.5",
+    "motion": "^13.1.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260827.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "wrangler": "^4.126.0"
+  }
+}

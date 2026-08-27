@@ -1,0 +1,61 @@
+---
+import Base from "../layouts/Base.astro";
+
+const classes = [
+  { name: "human", verdict: "served", badge: "available", why: "no automation signal, or a high bot score" },
+  { name: "verified bot", verdict: "served", badge: "available", why: "Googlebot, Bingbot, uptime monitors, AI crawlers" },
+  { name: "keyed client", verdict: "served", badge: "available", why: "authenticated API consumer, quota per key" },
+  { name: "likely automated", verdict: "challenged", badge: "limited", why: "low bot score, or an automation user-agent, with no key" },
+  { name: "abusive", verdict: "blocked", badge: "out_of_stock", why: "rate-limit breach or high-confidence automation" },
+];
+---
+
+<Base
+  title="GPUSTOCK — who's scraping us"
+  description="Live, public traffic transparency: how requests to gpustock.io are classified at the Cloudflare edge."
+  active="traffic"
+>
+  <section class="hero">
+    <h1 class="hero-title">Who&rsquo;s scraping<br /><em>this index</em></h1>
+    <p class="hero-sub">
+      A public price index is worth stealing, so it gets stolen. Rather than
+      hide that, this page publishes how traffic here is classified at the edge.
+    </p>
+  </section>
+
+  <section class="whoami-section">
+    <div class="section-head" data-reveal><h2>Your request</h2></div>
+    <p class="lede" data-reveal>Classified live, before any application code ran.</p>
+    <div class="whoami" data-whoami data-reveal>
+      <div class="whoami-row"><span>classification</span><b data-w="classification">&mdash;</b></div>
+      <div class="whoami-row"><span>reason</span><b data-w="reason">&mdash;</b></div>
+      <div class="whoami-row"><span>bot score</span><b data-w="botScore">&mdash;</b></div>
+      <div class="whoami-row"><span>country</span><b data-w="country">&mdash;</b></div>
+      <div class="whoami-row"><span>network (ASN)</span><b data-w="asn">&mdash;</b></div>
+    </div>
+  </section>
+
+  <section class="board-section">
+    <div class="section-head" data-reveal><h2>How classification works</h2></div>
+    <div class="board">
+      {classes.map((c) => (
+        <article class="card" data-reveal>
+          <div class="card-top"><span class="card-model">{c.name}</span></div>
+          <div class="card-bottom">
+            <span class={`badge badge-${c.badge}`}>{c.verdict}</span>
+            <span class="card-prov">{c.why}</span>
+          </div>
+        </article>
+      ))}
+    </div>
+
+    <p class="provenance" data-reveal>
+      Classification uses Cloudflare&rsquo;s bot score where the zone provides
+      one. Where it does not, the verdict falls back to user-agent heuristics
+      and the <em>reason</em> field says so explicitly &mdash; an unverified
+      guess is labelled as one rather than presented as a score.
+    </p>
+  </section>
+
+  <script src="../scripts/traffic.ts"></script>
+</Base>

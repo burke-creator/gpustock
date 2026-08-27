@@ -1,0 +1,374 @@
+/* GPUSTOCK — instrumentation aesthetic.
+   Dense, monospaced, oscilloscope-adjacent. Restraint over decoration:
+   one accent colour doing real work, everything else greyscale. */
+
+:root {
+  --bg:        #07090b;
+  --bg-raised: #0d1116;
+  --bg-sunken: #050607;
+  --line:      #1b2129;
+  --line-hot:  #29323d;
+  --ink:       #e6edf3;
+  --ink-dim:   #8b98a5;
+  --ink-faint: #56606b;
+
+  --acc:       #4ade80;   /* available / primary accent */
+  --acc-dim:   #16794a;
+  --warn:      #fbbf24;   /* limited */
+  --bad:       #f87171;   /* out of stock */
+  --info:      #60a5fa;
+
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  --r: 6px;
+  --pad: clamp(1rem, 4vw, 2.5rem);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  background: var(--bg);
+  color-scheme: dark;
+  /* No smooth-scroll: it fights Motion's scroll() and hurts INP. */
+}
+
+body {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 600px at 50% -10%, #0e1620 0%, transparent 60%),
+    var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Faint scanline grid. Pure paint, no layout cost, sits behind everything. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 48px 48px, 48px 48px;
+  opacity: .28;
+  mask-image: radial-gradient(900px 500px at 50% 0%, #000 0%, transparent 75%);
+}
+
+main, header, footer { position: relative; z-index: 1; }
+
+/* ---------- scroll rail ---------- */
+
+.scroll-rail {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--line);
+  z-index: 50;
+}
+.scroll-rail i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+  background: linear-gradient(90deg, var(--acc-dim), var(--acc));
+}
+
+/* ---------- masthead ---------- */
+
+.masthead {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1rem var(--pad);
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  text-decoration: none;
+  color: var(--ink);
+  font-weight: 700;
+  letter-spacing: .14em;
+}
+.brand-mark { color: var(--acc); }
+.brand-text { font-size: 13px; }
+
+.nav { display: flex; gap: .25rem; margin-left: auto; }
+.nav a {
+  color: var(--ink-dim);
+  text-decoration: none;
+  padding: .35rem .7rem;
+  border-radius: var(--r);
+  font-size: 13px;
+  transition: color .15s, background .15s;
+}
+.nav a:hover { color: var(--ink); background: var(--bg-raised); }
+.nav a[aria-current="page"] { color: var(--acc); }
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  padding: .3rem .6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.status-pill i {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+}
+.status-pill[data-conn="live"] i { background: var(--acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 22%, transparent); }
+.status-pill[data-conn="live"] { color: var(--acc); border-color: var(--acc-dim); }
+.status-pill[data-conn="down"] i { background: var(--bad); }
+.status-pill[data-conn="down"] { color: var(--bad); }
+
+/* ---------- hero ---------- */
+
+.hero { padding: clamp(3rem, 9vw, 6rem) var(--pad) 2rem; max-width: 60rem; }
+
+.hero-title {
+  margin: 0 0 1rem;
+  font-size: clamp(2rem, 6.5vw, 3.75rem);
+  line-height: 1.04;
+  letter-spacing: -.03em;
+  font-weight: 700;
+}
+.hero-title em {
+  font-style: normal;
+  color: var(--acc);
+  /* Subtle text glow — cheap, and reinforces the instrument feel. */
+  text-shadow: 0 0 28px color-mix(in srgb, var(--acc) 35%, transparent);
+}
+
+.hero-sub {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--ink-dim);
+  font-size: 15px;
+}
+
+.hero-meta { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-top: 2rem; }
+.kv { color: var(--ink-faint); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+.kv b { color: var(--ink); font-variant-numeric: tabular-nums; margin-right: .4rem; }
+
+/* ---------- ticker ---------- */
+
+.ticker {
+  border-block: 1px solid var(--line);
+  background: var(--bg-sunken);
+  overflow: hidden;
+  padding: .6rem 0;
+}
+.ticker-track {
+  display: flex;
+  gap: 2.5rem;
+  white-space: nowrap;
+  will-change: transform;
+  padding-left: var(--pad);
+}
+.ticker-empty { color: var(--ink-faint); font-size: 12px; }
+.tick { display: inline-flex; align-items: baseline; gap: .5rem; font-size: 12.5px; }
+.tick-model { color: var(--ink-dim); }
+.tick-price { color: var(--acc); font-variant-numeric: tabular-nums; }
+.tick-prov  { color: var(--ink-faint); font-size: 11px; }
+
+/* ---------- sections ---------- */
+
+.board-section, .whoami-section { padding: clamp(2.5rem, 7vw, 4.5rem) var(--pad); }
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+.section-head h2 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.filters { display: flex; gap: .4rem; margin-left: auto; flex-wrap: wrap; }
+.chip {
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: .28rem .7rem;
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.chip:hover { color: var(--ink); border-color: var(--line-hot); }
+.chip.is-active { color: var(--bg); background: var(--acc); border-color: var(--acc); }
+
+/* ---------- board ---------- */
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  gap: .75rem;
+}
+
+.board-skeleton { display: contents; }
+.board-skeleton i {
+  height: 7.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: linear-gradient(90deg, var(--bg-raised) 25%, #131922 50%, var(--bg-raised) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg-raised);
+  padding: .9rem 1rem;
+  display: grid;
+  gap: .55rem;
+  /* Motion animates transform/opacity only — never width/height/top. */
+  will-change: transform;
+}
+.card-top { display: flex; align-items: baseline; gap: .6rem; }
+.card-model { font-weight: 600; letter-spacing: -.01em; }
+.card-vram { color: var(--ink-faint); font-size: 11px; }
+
+.card-price {
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+}
+.card-price small { font-size: .6em; color: var(--ink-faint); margin-left: .2rem; }
+.card-price.is-none { color: var(--ink-faint); font-size: 1rem; }
+
+.card-bottom {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+  padding-top: .55rem;
+}
+.card-prov { color: var(--ink-dim); font-size: 12px; }
+.card-region { color: var(--ink-faint); font-size: 11px; }
+
+.badge {
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: .15rem .45rem;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+}
+.badge-available    { color: var(--acc); }
+.badge-limited      { color: var(--warn); }
+.badge-out_of_stock { color: var(--bad); }
+.badge-unknown      { color: var(--ink-faint); }
+
+.tag {
+  font-size: 9.5px;
+  letter-spacing: .12em;
+  padding: .12rem .35rem;
+  border-radius: 3px;
+  margin-left: auto;
+}
+.tag-sim { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.tag-api { color: var(--info); background: color-mix(in srgb, var(--info) 14%, transparent); }
+
+/* Price-change flash, applied by JS then removed. */
+.flash-up   { animation: flashUp .9s ease-out; }
+.flash-down { animation: flashDown .9s ease-out; }
+@keyframes flashUp {
+  0%   { background: color-mix(in srgb, var(--bad) 26%, transparent); }
+  100% { background: var(--bg-raised); }
+}
+@keyframes flashDown {
+  0%   { background: color-mix(in srgb, var(--acc) 26%, transparent); }
+  100% { background: var(--bg-raised); }
+}
+
+.provenance {
+  margin-top: 1.5rem;
+  color: var(--ink-faint);
+  font-size: 12px;
+  max-width: 62ch;
+  line-height: 1.6;
+}
+
+/* ---------- whoami ---------- */
+
+.lede { color: var(--ink-dim); max-width: 56ch; margin: 0 0 1.5rem; }
+
+.whoami {
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg-sunken);
+  max-width: 44rem;
+  overflow: hidden;
+}
+.whoami-row {
+  display: flex;
+  gap: 1rem;
+  padding: .65rem 1rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+.whoami-row:last-child { border-bottom: 0; }
+.whoami-row span { color: var(--ink-faint); min-width: 11rem; }
+.whoami-row b { color: var(--ink); font-weight: 500; word-break: break-word; }
+
+.whoami[data-class="human"]            .whoami-row b[data-w="classification"] { color: var(--acc); }
+.whoami[data-class="verified_bot"]     .whoami-row b[data-w="classification"] { color: var(--info); }
+.whoami[data-class="keyed_client"]     .whoami-row b[data-w="classification"] { color: var(--info); }
+.whoami[data-class="likely_automated"] .whoami-row b[data-w="classification"] { color: var(--warn); }
+.whoami[data-class="abusive"]          .whoami-row b[data-w="classification"] { color: var(--bad); }
+
+/* ---------- footer ---------- */
+
+.foot {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+  padding: 2rem var(--pad) 3rem;
+  border-top: 1px solid var(--line);
+  color: var(--ink-faint);
+  font-size: 11.5px;
+  letter-spacing: .04em;
+}
+
+/* ---------- reduced motion ----------
+   Motion checks this in JS too, but belt and braces: if the user asked for
+   less motion, nothing here animates regardless of what JS does. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+  .ticker-track { transform: none !important; }
+}

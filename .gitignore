@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.astro/
+.wrangler/
+
+# Secrets — never commit.
+.dev.vars
+.dev.vars.*
+*.token
+.env
+.env.*
+
+# Provisioned resource IDs (account-specific).
+.resource-ids
+
+.DS_Store
+*.log

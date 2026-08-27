@@ -1,0 +1,152 @@
+---
+import Base from "../layouts/Base.astro";
+import { env } from "cloudflare:workers";
+import { buildSnapshot } from "../lib/snapshot";
+
+/**
+ * SSR the first paint from D1 so the board is populated in the initial HTML.
+ *
+ * This is the main win from moving to Astro: previously the board shipped a
+ * skeleton and filled in after two round trips (fetch + websocket). Now the
+ * first byte already contains real rows, which helps LCP and means the page is
+ * useful with JavaScript disabled. The websocket then takes over for updates.
+ */
+// Astro v6 removed `Astro.locals.runtime.env`; the module-level `env` from
+// `cloudflare:workers` is the supported way to reach bindings during SSR.
+let snapshot = null;
+let ssrError = false;
+
+try {
+  const cached = await env.CACHE.get("snapshot:current", "json");
+  snapshot = cached ?? (await buildSnapshot(env));
+} catch {
+  ssrError = true;
+}
+
+const offers = (snapshot?.offers ?? []).slice().sort((a, b) => {
+  const rank = (x: typeof a) =>
+    x.availability === "available" ? 0 : x.availability === "limited" ? 1 : 2;
+  const r = rank(a) - rank(b);
+  return r !== 0 ? r : (a.priceUsdHr ?? Infinity) - (b.priceUsdHr ?? Infinity);
+});
+
+const providerCount = new Set(offers.map((o) => o.providerId)).size;
+const modelCount = new Set(offers.map((o) => o.modelId)).size;
+const updated = snapshot?.generatedAt
+  ? new Date(snapshot.generatedAt).toISOString().slice(11, 16) + "Z"
+  : "—";
+
+const ticker = Object.entries(snapshot?.bestByModel ?? {})
+  .filter(([, v]) => v)
+  .map(([modelId, v]) => ({
+    modelId,
+    modelName: offers.find((o) => o.modelId === modelId)?.modelName ?? modelId,
+    price: (v as { priceUsdHr: number }).priceUsdHr,
+    provider: (v as { providerId: string }).providerId,
+  }));
+---
+
+<Base
+  title="GPUSTOCK — live cloud GPU availability & price index"
+  description="Live availability and spot pricing for H100, H200, A100, L40S and MI300X capacity across cloud GPU providers. Free public API."
+  active="board"
+  showConnection
+>
+
+  <section class="hero">
+    <h1 class="hero-title">
+      Cloud GPU capacity,<br /><em>as it actually is</em>
+    </h1>
+    <p class="hero-sub">
+      Availability and spot price across providers, refreshed every ten minutes.
+      Free public API, no signup for read access.
+    </p>
+    <div class="hero-meta" data-reveal>
+      <span class="kv"><b data-stat-providers>{providerCount || "—"}</b> providers</span>
+      <span class="kv"><b data-stat-models>{modelCount || "—"}</b> accelerators</span>
+      <span class="kv"><b data-stat-updated>{updated}</b> last tick</span>
+    </div>
+  </section>
+
+  <section class="ticker" aria-label="Cheapest available price per accelerator">
+    <div class="ticker-track" data-ticker>
+      {ticker.length === 0 ? (
+        <span class="ticker-empty">awaiting first tick&hellip;</span>
+      ) : (
+        [...ticker, ...ticker].map((t) => (
+          <span class="tick">
+            <span class="tick-model">{t.modelName}</span>
+            <span class="tick-price">${t.price.toFixed(2)}</span>
+            <span class="tick-prov">{t.provider}</span>
+          </span>
+        ))
+      )}
+    </div>
+  </section>
+
+  <section class="board-section">
+    <div class="section-head" data-reveal>
+      <h2>Live board</h2>
+      <div class="filters">
+        <button class="chip is-active" data-filter="all">all</button>
+        <button class="chip" data-filter="available">available</button>
+        <button class="chip" data-filter="limited">limited</button>
+        <button class="chip" data-filter="out_of_stock">out of stock</button>
+      </div>
+    </div>
+
+    <div class="board" data-board data-ssr={offers.length > 0 ? "1" : "0"}>
+      {offers.length === 0 ? (
+        <div class="board-skeleton"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      ) : (
+        offers.map((o) => (
+          <article class="card" data-key={`${o.providerId}|${o.modelId}|${o.region ?? ""}`}>
+            <div class="card-top"><span class="card-model">{o.modelName}</span></div>
+            {o.priceUsdHr === null ? (
+              <div class="card-price is-none">no spot price</div>
+            ) : (
+              <div class="card-price">${o.priceUsdHr.toFixed(2)}<small>/gpu/hr</small></div>
+            )}
+            <div class="card-bottom">
+              <span class={`badge badge-${o.availability}`}>{o.availability.replace(/_/g, " ")}</span>
+              <span class="card-prov">{o.providerName}</span>
+              {o.region && <span class="card-region">{o.region}</span>}
+              <span class={o.sourceKind === "sim" ? "tag tag-sim" : "tag tag-api"}>
+                {o.sourceKind === "sim" ? "SIM" : "API"}
+              </span>
+            </div>
+          </article>
+        ))
+      )}
+    </div>
+
+    {ssrError && (
+      <p class="provenance">Server-side snapshot unavailable this request; the live socket will populate the board.</p>
+    )}
+
+    <p class="provenance" data-reveal>
+      Rows tagged <span class="tag tag-sim">SIM</span> come from a simulated
+      feed and are not real market data. Rows tagged
+      <span class="tag tag-api">API</span> are pulled from a provider&rsquo;s
+      public API. This label is never omitted.
+    </p>
+  </section>
+
+  <section class="whoami-section">
+    <div class="section-head" data-reveal><h2>How Cloudflare sees you</h2></div>
+    <p class="lede" data-reveal>
+      Every request to this site is classified at the edge. This is yours,
+      live &mdash; the same signal used to decide who gets served and who gets
+      challenged.
+    </p>
+    <div class="whoami" data-whoami data-reveal>
+      <div class="whoami-row"><span>classification</span><b data-w="classification">&mdash;</b></div>
+      <div class="whoami-row"><span>reason</span><b data-w="reason">&mdash;</b></div>
+      <div class="whoami-row"><span>bot score</span><b data-w="botScore">&mdash;</b></div>
+      <div class="whoami-row"><span>country</span><b data-w="country">&mdash;</b></div>
+      <div class="whoami-row"><span>network (ASN)</span><b data-w="asn">&mdash;</b></div>
+    </div>
+  </section>
+
+  <script src="../scripts/board.ts"></script>
+</Base>
