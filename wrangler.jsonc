@@ -15,7 +15,6 @@
   // necessarily cover. Off until that is confirmed.
   "preview_urls": false,
   "compatibility_date": "2026-08-27",
-  "account_id": "88b90c65afc385e4f42ceadc3e72cb94",
 
   // Static assets (Vite build output). The Worker handles /api/*, /ws and the
   // bot-report endpoints; anything else falls through to a built asset.
