@@ -1,0 +1,60 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Allows a redeploy without an empty commit.
+  workflow_dispatch:
+
+# A newer push to main supersedes an in-flight deploy. PRs cancel their own
+# earlier runs, but never cancel a main deploy.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          # Astro requires >=22.12.0.
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      # On a pull request, prove the Worker still bundles and every binding
+      # resolves, but do not touch production. `--dry-run` needs no
+      # credentials, so this step also works on forks.
+      - name: Verify bundle (pull request)
+        if: github.event_name == 'pull_request'
+        run: npx wrangler deploy --dry-run
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+
+      # `astro build` writes .wrangler/deploy/config.json, which redirects
+      # wrangler to the generated dist/server/wrangler.json. That is why no
+      # explicit `-c` is needed here.
+      - name: Deploy
+        if: github.event_name != 'pull_request'
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
