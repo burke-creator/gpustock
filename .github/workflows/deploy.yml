@@ -49,12 +49,33 @@ jobs:
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
 
-      # `astro build` writes .wrangler/deploy/config.json, which redirects
-      # wrangler to the generated dist/server/wrangler.json. That is why no
-      # explicit `-c` is needed here.
+      # Secrets cannot be referenced directly in a step `if`, so presence is
+      # resolved here first.
+      - name: Check for deploy credentials
+        id: creds
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -n "$CF_API_TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # `astro build` writes .wrangler/deploy/config.json, which points wrangler
+      # at the generated dist/server/wrangler.json, so no -c flag is needed.
       - name: Deploy
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && steps.creds.outputs.present == 'true'
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Without this the workflow fails on every push until the token exists,
+      # which just trains you to ignore failure mail. The build is still fully
+      # verified above; only the deploy is withheld, and it is annotated on the
+      # run so a green tick cannot be mistaken for "deployed".
+      - name: Deploy skipped (no credentials)
+        if: github.event_name != 'pull_request' && steps.creds.outputs.present != 'true'
+        run: |
+          echo "::warning title=Deploy skipped::CLOUDFLARE_API_TOKEN is not set in this repository. Build and typecheck passed, but nothing was deployed. Add it with: gh secret set CLOUDFLARE_API_TOKEN"
