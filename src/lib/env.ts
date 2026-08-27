@@ -1,6 +1,6 @@
 export interface Env {
-  /** Registry base URL, e.g. https://burkeruder.net. Optional. */
-  REGISTRY_URL?: string;
+  /** Service binding to the burkeruder.net registry Worker. Optional. */
+  REGISTRY?: Fetcher;
   /** Shared secret for posting run records to the registry. Optional. */
   REPORT_SECRET?: string;
 

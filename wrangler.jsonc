@@ -46,6 +46,16 @@
     { "binding": "APIKEYS", "id": "3f93bdfa3c4240fc9ac0efa6b21ed3be" }
   ],
 
+  "services": [
+    {
+      // Worker-to-Worker. Avoids the public edge, so the registry cannot be
+      // blocked by burkeruder.net's Browser Integrity Check or any future WAF
+      // rule. See src/lib/report.ts.
+      "binding": "REGISTRY",
+      "service": "burkeruder-net"
+    }
+  ],
+
   "d1_databases": [
     {
       "binding": "DB",
@@ -92,7 +102,6 @@
 
   "vars": {
     "SITE_NAME": "GPUSTOCK",
-    "REGISTRY_URL": "https://burkeruder.net",
     "API_VERSION": "v1",
     // Anonymous callers get this many req/min on /api/v1/*; keyed callers get
     // more. Deliberately low so scraper behaviour is easy to demo.
